@@ -1,5 +1,5 @@
 "use client";
-import { useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import meetings from "./file/meetings.json";
 import users from "./file/users.json";
 
@@ -95,9 +95,25 @@ export default function Home() {
       align: "center",
     },
   ];
+  const [visibleData, setVisibleData] = useState<Users[]>([]);
+  const [count, setCount] = useState(10); // Number of items to load at a time
+  const containerRef = useRef<any>(null);
+
+  const handleScroll = () => {
+    const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
+    if (scrollTop + clientHeight >= scrollHeight - 10) {
+      setCount((prevCount) => prevCount + 10);
+    }
+  };
+
   useEffect(() => {
-    console.log(meetings);
-    console.log(users);
+    setVisibleData(users.slice(0, count));
+  }, [users, count]);
+
+  useEffect(() => {
+    const container: any = containerRef.current;
+    container.addEventListener("scroll", handleScroll);
+    return () => container.removeEventListener("scroll", handleScroll);
   }, []);
   return (
     <main className="flex min-h-screen flex-col items-center justify-between p-24">
@@ -105,7 +121,10 @@ export default function Home() {
         <h1 className="text-2xl font-bold mb-4">
           Get & Show data working days
         </h1>
-        <div className="overflow-x-auto xl:overflow-x-visible overflow-y-auto h-[70vh]">
+        <div
+          ref={containerRef}
+          className="overflow-x-auto xl:overflow-x-visible overflow-y-auto h-[45vh]"
+        >
           <table className="min-w-full bg-white text-neutral-800">
             <thead className="sticky top-0 bg-gray-200">
               <tr>
@@ -133,7 +152,7 @@ export default function Home() {
               </tr>
             </thead>
             <tbody className="text-sm">
-              {users.map((rc: Users, index: number) => {
+              {visibleData.map((rc: Users, index: number) => {
                 return (
                   <tr key={rc.id}>
                     {columns.map((cl: Columns) => {
