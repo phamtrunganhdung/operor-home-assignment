@@ -1,7 +1,6 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
 import meetings from "./file/meetings.json";
-import users from "./file/users.json";
 
 interface Columns {
   label: string;
@@ -90,14 +89,86 @@ export default function Home() {
       label: "Days Without Meetings",
       dataIndex: "days_without__meetings",
       key: "days_without__meetings",
-      render: (_, r) =>
-        `${meetings.filter((mt: Meetings) => mt.user_id === r.id).length} days`,
+      render: (_, r) => {
+        const meetingsOfUser = meetings.filter(
+          (mt: Meetings) => mt.user_id === r.id
+        );
+        if (meetingsOfUser.length === 0) return `${r.days} days`;
+
+        meetingsOfUser.sort((a, b) => a.start_day - b.start_day);
+
+        let totalDays = 0;
+        let currentStart = meetingsOfUser[0].start_day;
+        let currentEnd = meetingsOfUser[0].end_day;
+
+        for (let i = 1; i < meetingsOfUser.length; i++) {
+          if (meetingsOfUser[i].start_day <= currentEnd) {
+            currentEnd = Math.max(currentEnd, meetingsOfUser[i].end_day);
+          } else {
+            totalDays += currentEnd - currentStart + 1;
+            currentStart = meetingsOfUser[i].start_day;
+            currentEnd = meetingsOfUser[i].end_day;
+          }
+        }
+
+        totalDays += currentEnd - currentStart + 1;
+        // console.log("totalDays", totalDays);
+
+        return `${r.days - totalDays} days`;
+      },
       align: "center",
     },
   ];
   const [visibleData, setVisibleData] = useState<Users[]>([]);
   const [count, setCount] = useState<number>(10); // Number of items to load at a time
+  const [loading, setLoading] = useState<boolean>(true);
   const containerRef = useRef<any>(null);
+
+  const Loading = () => {
+    return (
+      <svg
+        className="absolute w-full z-50 h-[45vh] pointer-events-none select-none opacity-50 bg-neutral-500"
+        viewBox="0 0 160 160"
+      >
+        <circle
+          cx="80"
+          cy="80"
+          r="10"
+          fill="none"
+          stroke="black"
+          stroke-width="5"
+        />
+        <g transform="translate(80, 80)">
+          <circle
+            cx="0"
+            cy="0"
+            r="10"
+            fill="none"
+            stroke="white"
+            stroke-width="6"
+            stroke-dasharray="0, 345"
+            stroke-linecap="round"
+          >
+            <animateTransform
+              attributeName="transform"
+              type="rotate"
+              from="0"
+              to="360"
+              begin="0s"
+              dur="0.75s"
+              repeatCount="indefinite"
+            />
+            <animate
+              attributeName="stroke-dasharray"
+              values="0, 345; 172.5, 172.5; 0, 345"
+              dur="1.5s"
+              repeatCount="indefinite"
+            />
+          </circle>
+        </g>
+      </svg>
+    );
+  };
 
   const handleScroll = () => {
     const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
@@ -107,11 +178,16 @@ export default function Home() {
   };
 
   const handleGetUsers = async (count: number) => {
+    setLoading(true);
     try {
       const response = await fetch(`/api/workingdays?count=${count}`);
       const data: Users[] = await response.json();
       setVisibleData(data);
+      setLoading(false);
     } catch (error) {
+      setTimeout(() => {
+        setLoading(false);
+      }, 1000);
       console.error("Error fetching items:", error);
     }
   };
@@ -124,17 +200,20 @@ export default function Home() {
     const container: any = containerRef.current;
     container.addEventListener("scroll", handleScroll);
     return () => container.removeEventListener("scroll", handleScroll);
-  }, [visibleData]);
+  }, [visibleData.length]);
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-between p-24">
       <div className="container mx-auto p-4">
         <h1 className="text-2xl font-bold mb-4">
           Get & Show data working days
         </h1>
+
         <div
           ref={containerRef}
-          className="overflow-x-auto xl:overflow-x-visible overflow-y-auto h-[45vh]"
+          className="overflow-x-auto xl:overflow-x-visible overflow-y-auto h-[45vh] relative"
         >
+          {loading && <Loading />}
           <table className="min-w-full bg-white text-neutral-800">
             <thead className="sticky top-0 bg-gray-200">
               <tr>
