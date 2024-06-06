@@ -96,25 +96,35 @@ export default function Home() {
     },
   ];
   const [visibleData, setVisibleData] = useState<Users[]>([]);
-  const [count, setCount] = useState(10); // Number of items to load at a time
+  const [count, setCount] = useState<number>(10); // Number of items to load at a time
   const containerRef = useRef<any>(null);
 
   const handleScroll = () => {
     const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
     if (scrollTop + clientHeight >= scrollHeight - 10) {
-      setCount((prevCount) => prevCount + 10);
+      setCount(visibleData.length + 10);
+    }
+  };
+
+  const handleGetUsers = async (count: number) => {
+    try {
+      const response = await fetch(`/api/workingdays?count=${count}`);
+      const data: Users[] = await response.json();
+      setVisibleData(data);
+    } catch (error) {
+      console.error("Error fetching items:", error);
     }
   };
 
   useEffect(() => {
-    setVisibleData(users.slice(0, count));
-  }, [users, count]);
+    handleGetUsers(count);
+  }, [count]);
 
   useEffect(() => {
     const container: any = containerRef.current;
     container.addEventListener("scroll", handleScroll);
     return () => container.removeEventListener("scroll", handleScroll);
-  }, []);
+  }, [visibleData]);
   return (
     <main className="flex min-h-screen flex-col items-center justify-between p-24">
       <div className="container mx-auto p-4">
